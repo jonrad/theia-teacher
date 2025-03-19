@@ -6,13 +6,13 @@ import { CommandRegistry } from '@theia/core';
 import { ChatAgent } from '@theia/ai-chat/lib/common/chat-agents';
 import { LayoutTool } from './tools/layout-tool';
 import { TeacherAgent } from './agents/teacher-agent';
-import { ShowWidgetTool } from './tools/show-widget-tool';
-
+import { HighlightHtmlElementTool } from './tools/highlight-html-tool';
+import { HighlightWidgetTool } from './tools/highlight-widget-tool';
 @injectable()
 export class AiToolsFrontendApplicationContribution implements FrontendApplicationContribution {
     constructor(
         @inject(CommandRegistry)
-        private readonly commandRegistry: CommandRegistry,
+        private readonly commandRegistry: CommandRegistry
     ) {
     }
 
@@ -22,7 +22,7 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
             label: 'Jon Experiment',
         }, {
             execute: async () => {
-                console.error("This is where I do my experimentation")
+                console.error("This is where I do my experimentation");
             }
         });
     }
@@ -39,7 +39,8 @@ export default new ContainerModule((bind, unbind, isBound, rebind, unbindAsync, 
 
     bindTools([
         LayoutTool,
-        ShowWidgetTool,
+        HighlightWidgetTool,
+        HighlightHtmlElementTool,
     ]);
 
     bind(AiToolsFrontendApplicationContribution).toSelf().inSingletonScope();
