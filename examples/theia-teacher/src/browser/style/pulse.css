@@ -1,0 +1,15 @@
+@keyframes pulse {
+  0%, 100% { 
+  }
+  50% { 
+    background-color: #f5841f; /* orange */
+  }
+}
+
+.pulse-element {
+  animation: pulse 2s infinite;
+}
+
+.theia-TreeNode:has(.pulse-element) {
+  animation: pulse 2s infinite;
+}
