@@ -42,12 +42,17 @@ export class ShowWidgetTool extends AbstractToolProvider<{ factoryId: string, op
 
         this.pulseWidget(widget);
 
-        return new Promise<void>((resolve) => {
+        // Wait for the user to click on the widget before returning a response
+        // TODO: Not sure I like this approach, but it's working for now
+        // Alternatively, we can just highlight and return immediately
+        return new Promise((resolve) => {
             const disposable = this.shell.onDidChangeActiveWidget(event => {
                 if (event.newValue === widget) {
                     disposable.dispose();
-                    console.error("Widget is active");
-                    resolve();
+                    resolve({
+                        success: true,
+                        message: `Widget ${args.factoryId} is now active`
+                    });
                 }
             });
         });
