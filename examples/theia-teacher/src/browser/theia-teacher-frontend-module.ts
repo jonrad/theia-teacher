@@ -29,6 +29,7 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
 }
 
 export default new ContainerModule((bind, unbind, isBound, rebind, unbindAsync, onActivation) => {
+    // TODO: verify if this is needed or if we can use bindContribution
     function bindTools(tools: any[]) {
         for (const tool of tools) {
             bind(tool).toSelf().inSingletonScope();
