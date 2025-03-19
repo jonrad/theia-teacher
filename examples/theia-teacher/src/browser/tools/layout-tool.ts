@@ -1,15 +1,16 @@
 import { injectable, inject } from '@theia/core/shared/inversify';
-import { ToolProvider, ToolRequest } from '@theia/ai-core/lib/common';
 import { FrontendApplication } from '@theia/core/lib/browser/frontend-application';
 import { StatefulWidget, Widget, WidgetDescription, WidgetManager } from '@theia/core/lib/browser';
+import { AbstractToolProvider } from './abstract-tool-provider';
 
 export const GET_LAYOUT_TOOL_ID = 'get-layout';
 
 @injectable()
-export class LayoutTool implements ToolProvider {
+export class LayoutTool extends AbstractToolProvider<void> {
+    parameters = undefined;
     id = GET_LAYOUT_TOOL_ID;
     name = GET_LAYOUT_TOOL_ID;
-    description = 'Get the current layout of the Theia ide';
+    description = 'Get the current layout of the IDE';
 
     constructor(
         @inject(FrontendApplication)
@@ -17,18 +18,10 @@ export class LayoutTool implements ToolProvider {
         @inject(WidgetManager)
         protected readonly widgetManager: WidgetManager,
     ) {
+        super();
     }
 
-    getTool(): ToolRequest {
-        return {
-            id: this.id,
-            name: this.name,
-            description: this.description,
-            handler: this.handler.bind(this)
-        };
-    }
-
-    public async handler() {
+    public async handle() {
         const layout = this.frontendApplication.shell.getLayoutData()
         return this.deflate(layout);
     }
