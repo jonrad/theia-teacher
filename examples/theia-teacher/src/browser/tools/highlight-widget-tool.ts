@@ -5,14 +5,15 @@ import { ApplicationShell, Widget, WidgetManager } from '@theia/core/lib/browser
 import { AbstractToolProvider } from './abstract-tool-provider';
 
 import '../../../src/browser/style/pulse.css';
+import { cloneVisibleElements } from '../html-utils';
 
-export const SHOW_WIDGET_TOOL_ID = 'show-widget';
+export const HIGHLIGHT_WIDGET_TOOL_ID = 'highlight-widget';
 
 @injectable()
-export class ShowWidgetTool extends AbstractToolProvider<{ factoryId: string, options?: object }> {
-    id = SHOW_WIDGET_TOOL_ID;
-    name = SHOW_WIDGET_TOOL_ID;
-    description = "Show a widget in the IDE, based on the layout's factoryId and options. After this is called, the widget will be expanded = true.";
+export class HighlightWidgetTool extends AbstractToolProvider<{ factoryId: string, options?: object }> {
+    id = HIGHLIGHT_WIDGET_TOOL_ID;
+    name = HIGHLIGHT_WIDGET_TOOL_ID;
+    description = "Highlight a widget in the IDE, based on the layout's factoryId and options. After this is called, the widget will be highlighted.";
     parameters = <ToolRequestParameters>{
         type: 'object',
         properties: {
@@ -40,8 +41,10 @@ export class ShowWidgetTool extends AbstractToolProvider<{ factoryId: string, op
             }
         }
 
+        // TODO: Handle widget is already active
+        // TODO: Handle child widgets
         this.pulseWidget(widget);
-
+        //
         // Wait for the user to click on the widget before returning a response
         // TODO: Not sure I like this approach, but it's working for now
         // Alternatively, we can just highlight and return immediately
@@ -50,8 +53,9 @@ export class ShowWidgetTool extends AbstractToolProvider<{ factoryId: string, op
                 if (event.newValue === widget) {
                     disposable.dispose();
                     resolve({
-                        success: true,
-                        message: `Widget ${args.factoryId} is now active`
+                        message: `Widget ${args.factoryId} is now active`,
+                        directions: 'Please provide further directions based on the widget you see.',
+                        widgetHtml: cloneVisibleElements(widget.node).outerHTML
                     });
                 }
             });
