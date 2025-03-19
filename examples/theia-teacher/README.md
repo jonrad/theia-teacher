@@ -2,37 +2,16 @@
 
 <br />
 
-<h2>ECLIPSE THEIA - API SAMPLES</h2>
+<h2>Theia Teacher Extension</h2>
 
 </div>
 
 ## Description
 
-The `@theia/api-samples` extension contains programming examples on how to use internal APIs.
-The purpose of the extension is to:
+This extension is a tool for helping the user learn how to use the Theia IDE. Compared to other AI tools, it is designed to empower the user to learn by doing.
 
-- provide developers with real-world coding examples using internal APIs, dependency injection, etc.
-- provide easy-to-use and test examples for features when reviewing pull-requests.
+## Features
 
-The extension is for reference and test purposes only and is not published on `npm` (`private: true`).
-
-### Sample mock OpenVSX server
-
-These samples contain a mock implementation of an OpenVSX server. This is done
-for testing purposes only. It is currently hosted at
-`<backend-host>/mock-open-vsx/api/...`.
-
-## Additional Information
-
-- [Theia - GitHub](https://github.com/eclipse-theia/theia)
-- [Theia - Website](https://theia-ide.org/)
-
-## License
-
-- [Eclipse Public License 2.0](http://www.eclipse.org/legal/epl-2.0/)
-- [一 (Secondary) GNU General Public License, version 2 with the GNU Classpath Exception](https://projects.eclipse.org/license/secondary-gpl-2.0-cp)
-
-## Trademark
-
-"Theia" is a trademark of the Eclipse Foundation
-<https://www.eclipse.org/theia>
+- **Teacher Agent**: A tool that can be used to help the user learn how to use the IDE.
+- **Layout Tool**: Get the current layout of the IDE (widgets and trees)
+- **Show Widget Tool**: Highlight a widget in the IDE to inform the user to click on it.
