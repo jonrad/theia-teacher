@@ -52,11 +52,6 @@ export function addOneTimeListener<K extends keyof HTMLElementEventMap>(
         disposable?.dispose();
     }
 
-    disposable = Disposable.create(() => {
-        node.removeEventListener(type, listenerWrapper, options);
-    });
-
-    node.addEventListener(type, listenerWrapper, options);
-
+    disposable = addListenerAsDisposable(node, type, listenerWrapper, options);
     return disposable;
 }
