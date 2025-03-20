@@ -1,12 +1,10 @@
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { ToolRequestParameters } from '@theia/ai-core/lib/common';
 import { FrontendApplication } from '@theia/core/lib/browser/frontend-application';
-import { ApplicationShell, Widget, WidgetManager } from '@theia/core/lib/browser';
+import { Widget, WidgetManager } from '@theia/core/lib/browser';
 import { AbstractToolProvider } from './abstract-tool-provider';
-
-import '../../../src/browser/style/pulse.css';
 import { cloneVisibleElements } from '../html-utils';
-
+import { Highlighter, HighlighterFactory } from '../highlighter';
 export const HIGHLIGHT_WIDGET_TOOL_ID = 'highlight-widget';
 
 @injectable()
@@ -25,64 +23,94 @@ export class HighlightWidgetTool extends AbstractToolProvider<{ factoryId: strin
     constructor(
         @inject(FrontendApplication)
         protected readonly frontendApplication: FrontendApplication,
-        @inject(ApplicationShell)
-        protected readonly shell: ApplicationShell,
         @inject(WidgetManager)
         protected readonly widgetManager: WidgetManager,
+        @inject(HighlighterFactory)
+        protected readonly highlighterFactory: HighlighterFactory,
     ) {
         super();
     }
 
     public async handle(args: { factoryId: string, options?: object }, ctx?: unknown) {
         const widget = await this.widgetManager.getWidget(args.factoryId, args.options);
+
+        // If the widget is not found, return an error
         if (!widget) {
             return {
                 error: `Widget with factoryId ${args.factoryId} and options ${JSON.stringify(args.options)} not found`
             }
         }
 
-        // TODO: Handle widget is already active
-        // TODO: Handle child widgets
-        this.pulseWidget(widget);
-        //
-        // Wait for the user to click on the widget before returning a response
-        // TODO: Not sure I like this approach, but it's working for now
-        // Alternatively, we can just highlight and return immediately
-        return new Promise((resolve) => {
-            const disposable = this.shell.onDidChangeActiveWidget(event => {
-                if (event.newValue === widget) {
-                    disposable.dispose();
-                    resolve({
-                        message: `Widget ${args.factoryId} is now active`,
-                        directions: 'Please provide further directions based on the widget you see.',
-                        widgetHtml: cloneVisibleElements(widget.node).outerHTML
-                    });
-                }
-            });
-        });
-    }
+        // If the widget is already visible, highlight it for a little while to get the user's attention and then stop
+        if (widget.isVisible) {
+            const pulser = await this.pulseWidget(widget);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await pulser.stop();
 
-    protected isPulsing(widget: Widget) {
-        return widget.title.className.includes(' pulse-element');
-    }
-
-    protected pulseWidget(widget: Widget) {
-        if (this.isPulsing(widget)) {
-            return;
+            return {
+                message: `Widget ${args.factoryId} is now visible`,
+                directions: 'Please provide further directions based on the widget you see.',
+                widgetHtml: cloneVisibleElements(widget.node).outerHTML
+            }
         }
 
-        widget.title.className += ' pulse-element';
-
-        // Once the widget is active, we unpulse it and unsubscribe from the event
-        const disposable = this.shell.onDidChangeActiveWidget(event => {
-            if (event.newValue === widget) {
-                this.unpulseWidget(widget);
-                disposable.dispose();
+        // If the parent widget is not visible, we need to go up the tree and highlight all the steps until we get to our widget
+        // until we get the widget itself visible
+        while (widget.parent && !widget.parent.isVisible) {
+            let parent = widget.parent;
+            while (parent.parent && !parent.parent.isVisible) {
+                parent = parent.parent;
             }
-        });
+            await this.pulseAndWaitForUser(parent);
+        }
+
+        // TODO: Handle widget is already active
+        // TODO: Handle child widgets
+        await this.pulseAndWaitForUser(widget);
+
+        return {
+            message: `Widget ${args.factoryId} is now active`,
+            directions: 'Please provide further directions based on the widget you see.',
+            // Widget HTML helps the LLM understand the context of the widget
+            widgetHtml: cloneVisibleElements(widget.node).outerHTML
+        };
     }
 
-    protected unpulseWidget(widget: Widget) {
-        widget.title.className = widget.title.className.replace(' pulse-element', '');
+    // Wait for the user to click on the widget before returning a response
+    // Alternatively, we can just highlight and return immediately
+    // TODO: Not sure I like the llm waiting for the user to click on the widget, rather than highlighting and returning immediately
+    protected async pulseAndWaitForUser(widget: Widget): Promise<void> {
+        const pulser = await this.highlighterFactory(widget);
+
+        const promise = new Promise<void>((resolve) => {
+            const disposable = pulser.onSelected(() => {
+                pulser.stop();
+                disposable.dispose();
+                resolve();
+            })
+        });
+
+        pulser.start();
+
+        return promise;
+    }
+
+    // Pulse and immediately return the highlighter. It's up to the caller to call stop
+    protected async pulseWidget(widget: Widget): Promise<Highlighter> {
+        const pulser = await this.highlighterFactory(widget);
+
+        if (pulser.isHighlighted()) {
+            return pulser;
+        }
+
+        // Once the widget is active, we unpulse it and unsubscribe from the event
+        const disposable = pulser.onSelected(() => {
+            pulser.stop();
+            disposable.dispose();
+        });
+
+        pulser.start();
+
+        return pulser;
     }
 }
