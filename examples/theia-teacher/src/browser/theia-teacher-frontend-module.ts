@@ -8,11 +8,15 @@ import { LayoutTool } from './tools/layout-tool';
 import { TeacherAgent } from './agents/teacher-agent';
 import { HighlightHtmlElementTool } from './tools/highlight-html-tool';
 import { HighlightWidgetTool } from './tools/highlight-widget-tool';
+import { ViewContainerPart, Widget } from '@theia/core/lib/browser';
+import { HighlighterFactory, WidgetHighlighter, ViewContainerPartHighlighter, Highlighter } from './highlighter';
+import { isViewContainerPart } from './widget-utils';
+import { interfaces } from 'inversify';
 @injectable()
 export class AiToolsFrontendApplicationContribution implements FrontendApplicationContribution {
     constructor(
         @inject(CommandRegistry)
-        private readonly commandRegistry: CommandRegistry
+        private readonly commandRegistry: CommandRegistry,
     ) {
     }
 
@@ -29,6 +33,22 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
 }
 
 export default new ContainerModule((bind, unbind, isBound, rebind, unbindAsync, onActivation) => {
+    bind(WidgetHighlighter).toSelf();
+    bind(ViewContainerPartHighlighter).toSelf();
+
+    bind(HighlighterFactory).toProvider((context: interfaces.Context) => {
+        return async (widget: Widget): Promise<Highlighter> => {
+            const child = context.container.createChild();
+            if (isViewContainerPart(widget.parent)) {
+                child.bind(ViewContainerPart).toConstantValue(widget.parent);
+                return child.get(ViewContainerPartHighlighter);
+            }
+
+            child.bind(Widget).toConstantValue(widget);
+            return child.get(WidgetHighlighter);
+        }
+    });
+
     // TODO: verify if this is needed or if we can use bindContribution
     function bindTools(tools: any[]) {
         for (const tool of tools) {
