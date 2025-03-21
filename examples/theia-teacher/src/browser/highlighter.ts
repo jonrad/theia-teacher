@@ -17,6 +17,7 @@ export interface Highlighter {
 export const HighlighterFactory = Symbol('HighlighterFactory');
 export type HighlighterFactory = (widget: Widget) => Promise<Highlighter>;
 
+// Highlights a widget that contains a visible title (widget.title)
 @injectable()
 export class WidgetHighlighter implements Highlighter {
     protected readonly disposables: DisposableCollection = new DisposableCollection();
@@ -51,6 +52,7 @@ export class WidgetHighlighter implements Highlighter {
     }
 }
 
+// Highlights a view container part that has a visible headerElement
 @injectable()
 export class ViewContainerPartHighlighter implements Highlighter {
     protected readonly disposables: DisposableCollection = new DisposableCollection();
