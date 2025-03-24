@@ -1,7 +1,7 @@
 import { Widget } from '@theia/core/lib/browser/widgets';
 import { ViewContainerPart } from '@theia/core/lib/browser/view-container';
 import { injectable, inject } from 'inversify';
-import { Emitter, Event, DisposableCollection } from '@theia/core';
+import { Emitter, Event, DisposableCollection, Disposable } from '@theia/core';
 import { ApplicationShell } from '@theia/core/lib/browser/shell/application-shell';
 
 import '../../src/browser/style/pulse.css';
@@ -11,7 +11,6 @@ export interface Highlighter {
     onSelected: Event<void>;
     start(): void;
     stop(): void;
-    isHighlighted(): boolean;
 }
 
 export const HighlighterFactory = Symbol('HighlighterFactory');
@@ -46,16 +45,13 @@ export class WidgetHighlighter implements Highlighter {
         this.widget.title.className = this.widget.title.className.replace(` ${CSS_PULSE_CLASS}`, '');
         this.disposables.dispose();
     }
-
-    isHighlighted(): boolean {
-        return this.widget.title.className.includes(CSS_PULSE_CLASS);
-    }
 }
 
 // Highlights a view container part that has a visible headerElement
 @injectable()
 export class ViewContainerPartHighlighter implements Highlighter {
     protected readonly disposables: DisposableCollection = new DisposableCollection();
+    protected stopDisposable: Disposable | undefined;
 
     protected readonly _onSelected = new Emitter<void>();
     onSelected: Event<void> = this._onSelected.event;
@@ -72,14 +68,31 @@ export class ViewContainerPartHighlighter implements Highlighter {
     }
 
     start(): void {
-        this.viewContainerPart.headerElement.classList.add(CSS_PULSE_CLASS);
+        if (this.stopDisposable) {
+            this.stop();
+        }
+
+        const container = this.viewContainerPart.viewContainer;
+        const parts = container?.getParts();
+
+        // view-container uses a different title node if there's only one part.
+        // I haven't figured out how to highlight that one yet, so we'll just highlight the whole container for the time being
+        // TODO: Highlight the single part title instead
+        if (container && parts && parts.length === 1) {
+            this.viewContainerPart.addClass(CSS_PULSE_CLASS);
+            this.stopDisposable = Disposable.create(() => {
+                this.viewContainerPart.removeClass(CSS_PULSE_CLASS);
+            });
+        } else {
+            const headerElement = this.viewContainerPart.headerElement;
+            headerElement.classList.add(CSS_PULSE_CLASS);
+            this.stopDisposable = Disposable.create(() => {
+                headerElement.classList.remove(CSS_PULSE_CLASS);
+            });
+        }
     }
 
     stop(): void {
-        this.viewContainerPart.headerElement.classList.remove(CSS_PULSE_CLASS);
-    }
-
-    isHighlighted(): boolean {
-        return this.viewContainerPart.headerElement.classList.contains(CSS_PULSE_CLASS);
+        this.stopDisposable?.dispose();
     }
 }
