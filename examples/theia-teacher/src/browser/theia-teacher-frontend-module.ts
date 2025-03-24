@@ -68,6 +68,16 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
                     }
                 }
 
+                // If the parent widget is not visible, we need to go up the tree and highlight all the steps until we get to our widget
+                // until we get the widget itself visible
+                while (widget.parent && !widget.parent.isVisible) {
+                    let parent = widget.parent;
+                    while (parent.parent && !parent.parent.isVisible) {
+                        parent = parent.parent;
+                    }
+                    await this.pulseAndWaitForUser(parent);
+                }
+
                 // If the widget is already visible, highlight it for a little while to get the user's attention and then stop
                 if (widget.isVisible) {
                     const pulser = await this.pulseWidget(widget);
@@ -79,16 +89,6 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
                         directions: 'Please provide further directions based on the widget you see.',
                         widgetHtml: cloneVisibleElements(widget.node).outerHTML
                     }
-                }
-
-                // If the parent widget is not visible, we need to go up the tree and highlight all the steps until we get to our widget
-                // until we get the widget itself visible
-                while (widget.parent && !widget.parent.isVisible) {
-                    let parent = widget.parent;
-                    while (parent.parent && !parent.parent.isVisible) {
-                        parent = parent.parent;
-                    }
-                    await this.pulseAndWaitForUser(parent);
                 }
 
                 // TODO: Handle widget is already active
@@ -128,10 +128,6 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
     // Pulse and immediately return the highlighter. It's up to the caller to call stop
     protected async pulseWidget(widget: Widget): Promise<Highlighter> {
         const pulser = await this.highlighterFactory(widget);
-
-        if (pulser.isHighlighted()) {
-            return pulser;
-        }
 
         // Once the widget is active, we unpulse it and unsubscribe from the event
         const disposable = pulser.onSelected(() => {
