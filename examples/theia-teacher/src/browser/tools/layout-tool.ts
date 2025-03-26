@@ -1,7 +1,7 @@
 import { injectable, inject } from '@theia/core/shared/inversify';
-import { FrontendApplication } from '@theia/core/lib/browser/frontend-application';
 import { StatefulWidget, Widget, WidgetDescription, WidgetManager } from '@theia/core/lib/browser';
 import { AbstractToolProvider } from './abstract-tool-provider';
+import { CommandRegistry } from '@theia/core';
 
 export const GET_LAYOUT_TOOL_ID = 'get-layout';
 
@@ -13,18 +13,19 @@ export class LayoutTool extends AbstractToolProvider<void> {
     description = 'Get the current layout of the IDE';
 
     constructor(
-        @inject(FrontendApplication)
-        protected readonly frontendApplication: FrontendApplication,
         @inject(WidgetManager)
         protected readonly widgetManager: WidgetManager,
+        @inject(CommandRegistry)
+        protected readonly commandRegistry: CommandRegistry,
     ) {
         super();
     }
 
     public async handle() {
-        const layout = this.frontendApplication.shell.getLayoutData()
-        return this.deflate(layout);
+        return this.commandRegistry.executeCommand(GET_LAYOUT_TOOL_ID);
     }
+
+    // TODO: clean all the code below this line
 
     protected isWidgetProperty(propertyName: string): boolean {
         return propertyName === 'widget';

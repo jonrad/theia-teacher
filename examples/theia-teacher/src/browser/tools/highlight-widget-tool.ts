@@ -1,9 +1,6 @@
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { ToolRequestParameters } from '@theia/ai-core/lib/common';
-import { FrontendApplication } from '@theia/core/lib/browser/frontend-application';
-import { WidgetManager } from '@theia/core/lib/browser';
 import { AbstractToolProvider } from './abstract-tool-provider';
-import { HighlighterFactory } from '../highlighter';
 import { CommandRegistry } from '@theia/core/lib/common';
 
 export const HIGHLIGHT_WIDGET_TOOL_ID = 'highlight-widget';
@@ -22,12 +19,6 @@ export class HighlightWidgetTool extends AbstractToolProvider<{ factoryId: strin
     }
 
     constructor(
-        @inject(FrontendApplication)
-        protected readonly frontendApplication: FrontendApplication,
-        @inject(WidgetManager)
-        protected readonly widgetManager: WidgetManager,
-        @inject(HighlighterFactory)
-        protected readonly highlighterFactory: HighlighterFactory,
         @inject(CommandRegistry)
         protected readonly commandRegistry: CommandRegistry,
     ) {
