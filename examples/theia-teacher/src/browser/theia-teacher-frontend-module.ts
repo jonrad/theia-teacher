@@ -4,16 +4,19 @@ import { Agent, ToolProvider } from '@theia/ai-core/lib/common';
 import { FrontendApplicationContribution } from '@theia/core/lib/browser/frontend-application-contribution';
 import { CommandRegistry } from '@theia/core';
 import { ChatAgent } from '@theia/ai-chat/lib/common/chat-agents';
-import { LayoutTool } from './tools/layout-tool';
+import { GET_LAYOUT_TOOL_ID, LayoutTool } from './tools/layout-tool';
 import { TeacherAgent } from './agents/teacher-agent';
-import { HighlightHtmlElementTool } from './tools/highlight-html-tool';
-import { HighlightWidgetTool } from './tools/highlight-widget-tool';
 import { ViewContainerPart, Widget, WidgetManager } from '@theia/core/lib/browser';
 import { HighlighterFactory, WidgetHighlighter, ViewContainerPartHighlighter, Highlighter } from './highlighter';
 import { isViewContainerPart } from './widget-utils';
 import { interfaces } from 'inversify';
 import { QuickInputService } from '@theia/core/lib/browser/quick-input';
-import { cloneVisibleElements } from './html-utils';
+import { addOneTimeListener, cloneVisibleElements } from './html-utils';
+import { DOMElementNode, DomService, ALL_ATTRIBUTES } from './dom/domService';
+import { HIGHLIGHT_BY_HIGHLIGHT_INDEX_TOOL_ID, HighlightByHighlightIndexTool } from './tools/highlight-by-index-tool';
+import { HIGHLIGHT_WIDGET_TOOL_ID } from './tools/highlight-widget-tool';
+import { HIGHLIGHT_HTML_ELEMENT_TOOL_ID } from './tools/highlight-html-tool';
+
 @injectable()
 export class AiToolsFrontendApplicationContribution implements FrontendApplicationContribution {
     constructor(
@@ -25,6 +28,8 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
         private readonly highlighterFactory: HighlighterFactory,
         @inject(WidgetManager)
         private readonly widgetManager: WidgetManager,
+        @inject(DomService)
+        private readonly domService: DomService,
     ) {
     }
 
@@ -34,77 +39,210 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
             label: 'Jon Experiment',
         }, {
             execute: async () => {
-                const result = await this.commandRegistry.executeCommand('highlight-widget', 'search-in-workspace');
-                console.error(`Experiment result`, result)
+                console.error('Hello World');
             }
         });
 
         this.commandRegistry.registerCommand({
-            id: 'highlight-widget',
+            id: GET_LAYOUT_TOOL_ID,
+            label: 'Get Layout',
+        }, {
+            execute: this.executeGetLayout.bind(this)
+        });
+
+        this.commandRegistry.registerCommand({
+            id: HIGHLIGHT_WIDGET_TOOL_ID,
             label: 'Highlight Widget',
         }, {
-            execute: async (factoryId?: string, options?: object) => {
+            execute: this.executeHighlightWidget.bind(this)
+        });
 
-                if (!factoryId) {
-                    const result = await this.quickInputService.input({
-                        prompt: 'Enter the factoryId of the widget to highlight',
-                        placeHolder: 'files'
-                    })
+        this.commandRegistry.registerCommand({
+            id: HIGHLIGHT_BY_HIGHLIGHT_INDEX_TOOL_ID,
+            label: 'Highlight by Highlight Index',
+        }, {
+            execute: this.executeHighlightByHighlightIndex.bind(this)
+        });
 
-                    if (!result) {
-                        return;
-                    }
 
-                    factoryId = result;
-
-                }
-
-                const widget = await this.widgetManager.getWidget(factoryId, options);
-
-                // If the widget is not found, return an error
-                if (!widget) {
-                    return {
-                        error: `Widget with factoryId ${factoryId} and options ${JSON.stringify(options)} not found`
-                    }
-                }
-
-                // If the parent widget is not visible, we need to go up the tree and highlight all the steps until we get to our widget
-                // until we get the widget itself visible
-                while (widget.parent && !widget.parent.isVisible) {
-                    let parent = widget.parent;
-                    while (parent.parent && !parent.parent.isVisible) {
-                        parent = parent.parent;
-                    }
-                    await this.pulseAndWaitForUser(parent);
-                }
-
-                // If the widget is already visible, highlight it for a little while to get the user's attention and then stop
-                if (widget.isVisible) {
-                    const pulser = await this.pulseWidget(widget);
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    await pulser.stop();
-
-                    return {
-                        message: `Widget ${factoryId} is now visible`,
-                        directions: 'Please provide further directions based on the widget you see.',
-                        widgetHtml: cloneVisibleElements(widget.node).outerHTML
-                    }
-                }
-
-                // TODO: Handle widget is already active
-                // TODO: Handle child widgets
-                await this.pulseAndWaitForUser(widget);
-
-                return {
-                    message: `Widget ${factoryId} is now active`,
-                    directions: 'Please provide further directions based on the widget you see.',
-                    // Widget HTML helps the LLM understand the context of the widget
-                    widgetHtml: cloneVisibleElements(widget.node).outerHTML
-                };
-            }
+        this.commandRegistry.registerCommand({
+            id: HIGHLIGHT_HTML_ELEMENT_TOOL_ID,
+            label: 'Highlight HTML Element',
+        }, {
+            execute: this.executeHighlightHtmlElement.bind(this)
         });
     }
 
+    protected async getFactoryId() {
+        return await this.quickInputService.input({
+            prompt: 'Enter the factoryId of the widget to highlight',
+            placeHolder: 'files'
+        })
+    }
+
+    // TODO: Decide if we want to keep this tool
+    async executeHighlightHtmlElement(factoryId?: string, options?: object, cssSelector?: string) {
+        if (!factoryId) {
+            factoryId = await this.getFactoryId();
+
+            if (!factoryId) {
+                return;
+            }
+        }
+
+        const widget = await this.widgetManager.getWidget(factoryId, options);
+        if (!widget) {
+            return {
+                error: `Widget with factoryId ${factoryId} and options ${JSON.stringify(options)} not found`
+            }
+        }
+
+        if (!cssSelector) {
+            cssSelector = await this.quickInputService.input({
+                prompt: 'Enter the cssSelector of the element to highlight',
+            })
+
+            if (!cssSelector) {
+                return;
+            }
+        }
+
+        const node = widget.node.querySelector(cssSelector) as HTMLElement;
+        if (!node) {
+            return {
+                error: `Node with cssSelector ${cssSelector} not found`
+            }
+        }
+
+        addOneTimeListener(node, 'click', () => {
+            node.classList.remove('pulse-element');
+        });
+
+
+        node.classList.add('pulse-element');
+
+        return {
+            success: true,
+            nodeHtml: cloneVisibleElements(node).outerHTML
+        }
+    }
+
+    async executeHighlightByHighlightIndex(highlightIndex: number | undefined) {
+        if (!highlightIndex) {
+            const highlightIndexValue = await this.quickInputService.input({
+                prompt: 'Enter the highlightIndex of the element to highlight',
+            })
+
+            if (!highlightIndexValue) {
+                return;
+            }
+
+            highlightIndex = parseInt(highlightIndexValue);
+        }
+
+        const selectorMap = await this.domService.getLastSelectorMap()
+        if (!selectorMap) {
+            throw new Error('Please run the Get Layout tool first');
+        }
+
+        const element = selectorMap[highlightIndex];
+        if (!element) {
+            throw new Error(`Element with highlightIndex ${highlightIndex} not found. This likely means the layout tool needs to be rerun`);
+        }
+
+        const xpath = element.xpath;
+        const domNode = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue as HTMLElement;
+        if (!domNode) {
+            throw new Error(`Element with xpath ${xpath} not found. This likely means the layout tool needs to be rerun`);
+        }
+
+        domNode.classList.add('pulse-element');
+
+        return new Promise((resolve) => {
+            addOneTimeListener(domNode, 'click', () => {
+                domNode.classList.remove('pulse-element');
+                resolve({
+                    success: true,
+                    directions: 'User has clicked on the element, please provide further directions based on any changes to the layout.'
+                });
+            });
+        });
+    }
+
+    async executeGetLayout() {
+        const { selectorMap } = await this.domService.getClickableElements(false);
+        const entries = Object.values(selectorMap)
+            .map((value) => (value as DOMElementNode).clickableElementsToString(ALL_ATTRIBUTES))
+            .filter((entry) => entry !== undefined)
+            .map((entry) => {
+                return {
+                    ...entry,
+                    children: undefined
+                }
+            });
+
+        const layout = {
+            highlightable: entries
+        };
+
+        console.error('layout', JSON.stringify(layout).length, layout);
+
+        return layout;
+    }
+
+    // TODO: Decide if we want to keep this tool
+    async executeHighlightWidget(factoryId?: string, options?: object) {
+        if (!factoryId) {
+            factoryId = await this.getFactoryId();
+
+            if (!factoryId) {
+                return;
+            }
+        }
+
+        const widget = await this.widgetManager.getWidget(factoryId, options);
+
+        // If the widget is not found, return an error
+        if (!widget) {
+            return {
+                error: `Widget with factoryId ${factoryId} and options ${JSON.stringify(options)} not found`
+            }
+        }
+
+        // If the parent widget is not visible, we need to go up the tree and highlight all the steps until we get to our widget
+        // until we get the widget itself visible
+        while (widget.parent && !widget.parent.isVisible) {
+            let parent = widget.parent;
+            while (parent.parent && !parent.parent.isVisible) {
+                parent = parent.parent;
+            }
+            await this.pulseAndWaitForUser(parent);
+        }
+
+        // If the widget is already visible, highlight it for a little while to get the user's attention and then stop
+        if (widget.isVisible) {
+            const pulser = await this.pulseWidget(widget);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await pulser.stop();
+
+            return {
+                message: `Widget ${factoryId} is now visible`,
+                directions: 'Please provide further directions based on the widget you see.',
+                widgetHtml: cloneVisibleElements(widget.node).outerHTML
+            }
+        }
+
+        // TODO: Handle widget is already active
+        // TODO: Handle child widgets
+        await this.pulseAndWaitForUser(widget);
+
+        return {
+            message: `Widget ${factoryId} is now active`,
+            directions: 'Please provide further directions based on the widget you see.',
+            // Widget HTML helps the LLM understand the context of the widget
+            widgetHtml: cloneVisibleElements(widget.node).outerHTML
+        };
+    }
 
     // Wait for the user to click on the widget before returning a response
     // Alternatively, we can just highlight and return immediately
@@ -141,7 +279,7 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
     }
 }
 
-export default new ContainerModule((bind, unbind, isBound, rebind, unbindAsync, onActivation) => {
+export default new ContainerModule((bind) => {
     bind(WidgetHighlighter).toSelf();
     bind(ViewContainerPartHighlighter).toSelf();
 
@@ -168,8 +306,7 @@ export default new ContainerModule((bind, unbind, isBound, rebind, unbindAsync, 
 
     bindTools([
         LayoutTool,
-        HighlightWidgetTool,
-        HighlightHtmlElementTool,
+        HighlightByHighlightIndexTool,
     ]);
 
     bind(AiToolsFrontendApplicationContribution).toSelf().inSingletonScope();
@@ -178,4 +315,6 @@ export default new ContainerModule((bind, unbind, isBound, rebind, unbindAsync, 
     bind(TeacherAgent).toSelf().inSingletonScope();
     bind(Agent).toService(TeacherAgent);
     bind(ChatAgent).toService(TeacherAgent);
+
+    bind(DomService).toSelf().inSingletonScope();
 });

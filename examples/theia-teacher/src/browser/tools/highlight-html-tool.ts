@@ -1,9 +1,7 @@
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { ToolRequestParameters } from '@theia/ai-core/lib/common';
-import { FrontendApplication } from '@theia/core/lib/browser/frontend-application';
-import { ApplicationShell, WidgetManager } from '@theia/core/lib/browser';
 import { AbstractToolProvider } from './abstract-tool-provider';
-import { cloneVisibleElements, addOneTimeListener } from '../html-utils';
+import { CommandRegistry } from '@theia/core';
 
 import '../../../src/browser/style/pulse.css';
 
@@ -31,41 +29,13 @@ export class HighlightHtmlElementTool extends AbstractToolProvider<HighlightHtml
     }
 
     constructor(
-        @inject(FrontendApplication)
-        protected readonly frontendApplication: FrontendApplication,
-        @inject(ApplicationShell)
-        protected readonly shell: ApplicationShell,
-        @inject(WidgetManager)
-        protected readonly widgetManager: WidgetManager,
+        @inject(CommandRegistry)
+        protected readonly commandRegistry: CommandRegistry,
     ) {
         super();
     }
 
     public async handle(args: HighlightHtmlElementToolArgs, ctx?: unknown) {
-        const widget = await this.widgetManager.getWidget(args.parentWidgetFactoryId, args.parentWidgetOptions);
-        if (!widget) {
-            return {
-                error: `Widget with factoryId ${args.parentWidgetFactoryId} and options ${JSON.stringify(args.parentWidgetOptions)} not found`
-            }
-        }
-
-        const node = widget.node.querySelector(args.cssSelector) as HTMLElement;
-        if (!node) {
-            return {
-                error: `Node with cssSelector ${args.cssSelector} not found`
-            }
-        }
-
-        addOneTimeListener(node, 'click', () => {
-            node.classList.remove('pulse-element');
-        });
-
-
-        node.classList.add('pulse-element');
-
-        return {
-            success: true,
-            nodeHtml: cloneVisibleElements(node).outerHTML
-        }
+        this.commandRegistry.executeCommand('highlight-html-element', args.parentWidgetFactoryId, args.parentWidgetOptions, args.cssSelector);
     }
 }
