@@ -3,6 +3,8 @@ import { ToolRequestParameters } from '@theia/ai-core/lib/common';
 import { AbstractToolProvider } from './abstract-tool-provider';
 import { CommandRegistry } from '@theia/core/lib/common';
 
+import '../../../src/browser/style/pulse.css';
+
 export const HIGHLIGHT_BY_HIGHLIGHT_INDEX_TOOL_ID = 'highlight-by-highlight-index';
 
 @injectable()

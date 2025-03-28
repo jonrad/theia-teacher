@@ -4,7 +4,6 @@ import { injectable } from '@theia/core/shared/inversify';
 import { AbstractStreamParsingChatAgent } from '@theia/ai-chat/lib/common/chat-agents';
 import { LanguageModelRequirement } from '@theia/ai-core/lib/common';
 import { GET_LAYOUT_TOOL_ID } from '../tools/layout-tool';
-import { HIGHLIGHT_WIDGET_TOOL_ID } from '../tools/highlight-widget-tool';
 import { HIGHLIGHT_BY_HIGHLIGHT_INDEX_TOOL_ID } from '../tools/highlight-by-index-tool';
 
 @injectable()
@@ -41,7 +40,7 @@ Behavior:
 
 Example Scenarios:
 
-- If a user asks, "How do I open the terminal?", highlight the terminal widget using ~{${HIGHLIGHT_WIDGET_TOOL_ID}} and explain how to access it.
+- If a user asks, "How do I open the terminal?", highlight the new terminal button using ~{${HIGHLIGHT_BY_HIGHLIGHT_INDEX_TOOL_ID}} and explain how to access it.
 - If a user asks, "Where do I find my open files?", use ~{${GET_LAYOUT_TOOL_ID}} to determine their panel setup and highlight the appropriate section.
 
 Keep responses concise, actionable, and focused on helping the user learn how to use Theia effectively.`

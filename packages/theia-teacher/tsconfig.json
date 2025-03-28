@@ -1,0 +1,55 @@
+{
+  "extends": "../../configs/base.tsconfig",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "lib"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../dev-packages/ovsx-client"
+    },
+    {
+      "path": "../ai-chat"
+    },
+    {
+      "path": "../ai-chat-ui"
+    },
+    {
+      "path": "../ai-core"
+    },
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../file-search"
+    },
+    {
+      "path": "../filesystem"
+    },
+    {
+      "path": "../monaco"
+    },
+    {
+      "path": "../output"
+    },
+    {
+      "path": "../search-in-workspace"
+    },
+    {
+      "path": "../test"
+    },
+    {
+      "path": "../toolbar"
+    },
+    {
+      "path": "../vsx-registry"
+    },
+    {
+      "path": "../workspace"
+    }
+  ]
+}
