@@ -15,7 +15,7 @@ export abstract class AbstractToolProvider<T> implements ToolProvider {
             id: this.id,
             name: this.name,
             description: this.description,
-            parameters: this.parameters,
+            parameters: this.parameters ?? { properties: {}, type: 'object' },
             handler: this.handler.bind(this)
         };
     }
@@ -25,7 +25,7 @@ export abstract class AbstractToolProvider<T> implements ToolProvider {
             const args = <T>JSON.parse(arg_string);
             return await this.handle(args, ctx);
         } catch (error) {
-            console.error("Error handling tool request", error);
+            console.error('Error handling tool request', error);
             return {
                 error: error.message
             };

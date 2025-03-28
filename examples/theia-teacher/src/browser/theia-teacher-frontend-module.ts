@@ -1,4 +1,4 @@
-import { injectable, inject } from '@theia/core/shared/inversify';
+import { injectable, inject, interfaces } from '@theia/core/shared/inversify';
 import { ContainerModule } from '@theia/core/shared/inversify';
 import { Agent, ToolProvider } from '@theia/ai-core/lib/common';
 import { FrontendApplicationContribution } from '@theia/core/lib/browser/frontend-application-contribution';
@@ -9,7 +9,6 @@ import { TeacherAgent } from './agents/teacher-agent';
 import { ViewContainerPart, Widget, WidgetManager } from '@theia/core/lib/browser';
 import { HighlighterFactory, WidgetHighlighter, ViewContainerPartHighlighter, Highlighter } from './highlighter';
 import { isViewContainerPart } from './widget-utils';
-import { interfaces } from 'inversify';
 import { QuickInputService } from '@theia/core/lib/browser/quick-input';
 import { addOneTimeListener, cloneVisibleElements } from './html-utils';
 import { DOMElementNode, DomService, ALL_ATTRIBUTES } from './dom/domService';
@@ -64,7 +63,6 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
             execute: this.executeHighlightByHighlightIndex.bind(this)
         });
 
-
         this.commandRegistry.registerCommand({
             id: HIGHLIGHT_HTML_ELEMENT_TOOL_ID,
             label: 'Highlight HTML Element',
@@ -73,11 +71,11 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
         });
     }
 
-    protected async getFactoryId() {
-        return await this.quickInputService.input({
+    protected getFactoryId() {
+        return this.quickInputService.input({
             prompt: 'Enter the factoryId of the widget to highlight',
             placeHolder: 'files'
-        })
+        });
     }
 
     // TODO: Decide if we want to keep this tool
@@ -94,13 +92,13 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
         if (!widget) {
             return {
                 error: `Widget with factoryId ${factoryId} and options ${JSON.stringify(options)} not found`
-            }
+            };
         }
 
         if (!cssSelector) {
             cssSelector = await this.quickInputService.input({
                 prompt: 'Enter the cssSelector of the element to highlight',
-            })
+            });
 
             if (!cssSelector) {
                 return;
@@ -111,27 +109,26 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
         if (!node) {
             return {
                 error: `Node with cssSelector ${cssSelector} not found`
-            }
+            };
         }
 
         addOneTimeListener(node, 'click', () => {
             node.classList.remove('pulse-element');
         });
 
-
         node.classList.add('pulse-element');
 
         return {
             success: true,
             nodeHtml: cloneVisibleElements(node).outerHTML
-        }
+        };
     }
 
     async executeHighlightByHighlightIndex(highlightIndex: number | undefined) {
         if (!highlightIndex) {
             const highlightIndexValue = await this.quickInputService.input({
                 prompt: 'Enter the highlightIndex of the element to highlight',
-            })
+            });
 
             if (!highlightIndexValue) {
                 return;
@@ -140,7 +137,7 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
             highlightIndex = parseInt(highlightIndexValue);
         }
 
-        const selectorMap = await this.domService.getLastSelectorMap()
+        const selectorMap = this.domService.getLastSelectorMap();
         if (!selectorMap) {
             throw new Error('Please run the Get Layout tool first');
         }
@@ -151,14 +148,20 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
         }
 
         const xpath = element.xpath;
-        const domNode = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue as HTMLElement;
+        const domNode = document.evaluate(
+            xpath,
+            document,
+            undefined,
+            XPathResult.FIRST_ORDERED_NODE_TYPE,
+            undefined
+        ).singleNodeValue as HTMLElement;
         if (!domNode) {
             throw new Error(`Element with xpath ${xpath} not found. This likely means the layout tool needs to be rerun`);
         }
 
         domNode.classList.add('pulse-element');
 
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
             addOneTimeListener(domNode, 'click', () => {
                 domNode.classList.remove('pulse-element');
                 resolve({
@@ -170,16 +173,31 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
     }
 
     async executeGetLayout() {
+        /*
+        // TODO: This isn't working
+        const chatWidget = await this.widgetManager.getWidget('chat-tree-widget');
+        if (chatWidget) {
+            chatWidget.addClass('theia-nohighlight');
+        } else {
+            console.error('chatWidget not found');
+        }
+        */
+        const chatTreeContainer = document.getElementById('chat-tree-widget-treeContainer');
+        if (chatTreeContainer) {
+            chatTreeContainer.classList.add('theia-nohighlight');
+        } else {
+            console.error('chatTreeContainer not found');
+        }
+
         const { selectorMap } = await this.domService.getClickableElements(false);
+        console.error('selectorMap', selectorMap);
         const entries = Object.values(selectorMap)
-            .map((value) => (value as DOMElementNode).clickableElementsToString(ALL_ATTRIBUTES))
-            .filter((entry) => entry !== undefined)
-            .map((entry) => {
-                return {
+            .map(value => (value as DOMElementNode).clickableElementsToString(ALL_ATTRIBUTES))
+            .filter(entry => entry !== undefined)
+            .map(entry => ({
                     ...entry,
                     children: undefined
-                }
-            });
+                }));
 
         const layout = {
             highlightable: entries
@@ -206,7 +224,7 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
         if (!widget) {
             return {
                 error: `Widget with factoryId ${factoryId} and options ${JSON.stringify(options)} not found`
-            }
+            };
         }
 
         // If the parent widget is not visible, we need to go up the tree and highlight all the steps until we get to our widget
@@ -223,13 +241,13 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
         if (widget.isVisible) {
             const pulser = await this.pulseWidget(widget);
             await new Promise(resolve => setTimeout(resolve, 1000));
-            await pulser.stop();
+            pulser.stop();
 
             return {
                 message: `Widget ${factoryId} is now visible`,
                 directions: 'Please provide further directions based on the widget you see.',
                 widgetHtml: cloneVisibleElements(widget.node).outerHTML
-            }
+            };
         }
 
         // TODO: Handle widget is already active
@@ -250,12 +268,12 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
     protected async pulseAndWaitForUser(widget: Widget): Promise<void> {
         const pulser = await this.highlighterFactory(widget);
 
-        const promise = new Promise<void>((resolve) => {
+        const promise = new Promise<void>(resolve => {
             const disposable = pulser.onSelected(() => {
                 pulser.stop();
                 disposable.dispose();
                 resolve();
-            })
+            });
         });
 
         pulser.start();
@@ -279,12 +297,11 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
     }
 }
 
-export default new ContainerModule((bind) => {
+export default new ContainerModule(bind => {
     bind(WidgetHighlighter).toSelf();
     bind(ViewContainerPartHighlighter).toSelf();
 
-    bind(HighlighterFactory).toProvider((context: interfaces.Context) => {
-        return async (widget: Widget): Promise<Highlighter> => {
+    bind(HighlighterFactory).toProvider((context: interfaces.Context) => async (widget: Widget): Promise<Highlighter> => {
             const child = context.container.createChild();
             if (isViewContainerPart(widget.parent)) {
                 child.bind(ViewContainerPart).toConstantValue(widget.parent);
@@ -293,11 +310,10 @@ export default new ContainerModule((bind) => {
 
             child.bind(Widget).toConstantValue(widget);
             return child.get(WidgetHighlighter);
-        }
-    });
+        });
 
     // TODO: verify if this is needed or if we can use bindContribution
-    function bindTools(tools: any[]) {
+    function bindTools(tools: interfaces.ServiceIdentifier<ToolProvider>[]) {
         for (const tool of tools) {
             bind(tool).toSelf().inSingletonScope();
             bind(ToolProvider).toService(tool);

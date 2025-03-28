@@ -26,7 +26,7 @@ export class HighlightHtmlElementTool extends AbstractToolProvider<HighlightHtml
             cssSelector: { type: 'string' },
         },
         required: ['parentWidgetFactoryId', 'cssSelector']
-    }
+    };
 
     constructor(
         @inject(CommandRegistry)

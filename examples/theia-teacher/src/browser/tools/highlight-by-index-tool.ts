@@ -9,13 +9,13 @@ export const HIGHLIGHT_BY_HIGHLIGHT_INDEX_TOOL_ID = 'highlight-by-highlight-inde
 export class HighlightByHighlightIndexTool extends AbstractToolProvider<{ highlightIndex: number }> {
     id = HIGHLIGHT_BY_HIGHLIGHT_INDEX_TOOL_ID;
     name = HIGHLIGHT_BY_HIGHLIGHT_INDEX_TOOL_ID;
-    description = "Highlight an element by its highlightIndex";
+    description = 'Highlight an element by its highlightIndex';
     parameters = <ToolRequestParameters>{
         type: 'object',
         properties: {
             highlightIndex: { type: 'number' },
         },
-    }
+    };
 
     constructor(
         @inject(CommandRegistry)

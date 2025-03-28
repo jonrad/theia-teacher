@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { injectable } from '@theia/core/shared/inversify';
 import { buildDomTree } from './buildDomTree';
 
@@ -64,7 +65,7 @@ export class DomService {
         };
 
         try {
-            const evalPage = await buildDomTree(args);
+            const evalPage = buildDomTree(args);
             return await this._constructDomTree(evalPage);
         } catch (e) {
             logger.error(`Error evaluating JavaScript: ${e}`);
@@ -305,7 +306,7 @@ export class DOMElementNode extends DOMBaseNode {
         }
 
         if (extras.length > 0) {
-            tagStr += ` [${extras.join(", ")}]`;
+            tagStr += ` [${extras.join(', ')}]`;
         }
 
         // Add children
@@ -400,7 +401,7 @@ export class DOMElementNode extends DOMBaseNode {
                     nodeOutput = {
                         type: 'element',
                         tagName: node.tagName,
-                    }
+                    };
                 }
 
                 nodeOutput.children = node.children.map(child => processNode(child, depth + 1)).filter((child): child is DOMNodeOutput => child !== undefined);

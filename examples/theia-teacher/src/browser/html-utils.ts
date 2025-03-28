@@ -28,7 +28,7 @@ export function cloneVisibleElements(originalElement: HTMLElement): HTMLElement 
 export function addListenerAsDisposable<K extends keyof HTMLElementEventMap>(
     node: HTMLElement,
     type: K,
-    listener: (ev: HTMLElementEventMap[K]) => any,
+    listener: (ev: HTMLElementEventMap[K]) => void,
     options?: boolean | AddEventListenerOptions
 ): Disposable {
     node.addEventListener(type, listener, options);
@@ -41,7 +41,7 @@ export function addListenerAsDisposable<K extends keyof HTMLElementEventMap>(
 export function addOneTimeListener<K extends keyof HTMLElementEventMap>(
     node: HTMLElement,
     type: K,
-    listener: (ev: HTMLElementEventMap[K]) => any,
+    listener: (ev: HTMLElementEventMap[K]) => void,
     options?: boolean | AddEventListenerOptions
 ): Disposable {
 
@@ -50,7 +50,7 @@ export function addOneTimeListener<K extends keyof HTMLElementEventMap>(
     const listenerWrapper = (ev: HTMLElementEventMap[K]) => {
         listener(ev);
         disposable?.dispose();
-    }
+    };
 
     disposable = addListenerAsDisposable(node, type, listenerWrapper, options);
     return disposable;

@@ -1,6 +1,6 @@
 import { Widget } from '@theia/core/lib/browser/widgets';
 import { ViewContainerPart } from '@theia/core/lib/browser/view-container';
-import { injectable, inject } from 'inversify';
+import { injectable, inject } from '@theia/core/shared/inversify';
 import { Emitter, Event, DisposableCollection, Disposable } from '@theia/core';
 import { ApplicationShell } from '@theia/core/lib/browser/shell/application-shell';
 
@@ -60,7 +60,7 @@ export class ViewContainerPartHighlighter implements Highlighter {
         @inject(ViewContainerPart)
         private readonly viewContainerPart: ViewContainerPart
     ) {
-        this.disposables.push(this.viewContainerPart.onCollapsed((collapsed) => {
+        this.disposables.push(this.viewContainerPart.onCollapsed(collapsed => {
             if (!collapsed) {
                 this._onSelected.fire();
             }

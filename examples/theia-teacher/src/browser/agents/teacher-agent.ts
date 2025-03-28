@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 import { PromptTemplate } from '@theia/ai-core/src/common/prompt-service';
 import { injectable } from '@theia/core/shared/inversify';
 import { AbstractStreamParsingChatAgent } from '@theia/ai-chat/lib/common/chat-agents';

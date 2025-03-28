@@ -196,9 +196,6 @@
     },
     {
       "path": "../../packages/workspace"
-    },
-    {
-      "path": "../theia-teacher"
     }
   ]
 }

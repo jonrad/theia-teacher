@@ -6,5 +6,12 @@ module.exports = {
     parserOptions: {
         tsconfigRootDir: __dirname,
         project: 'tsconfig.json'
+    },
+    rules: {
+        '@typescript-eslint/tslint/config': ['error', {
+            rules: {
+                'file-header': false
+            }
+        }]
     }
 };

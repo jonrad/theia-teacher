@@ -16,7 +16,7 @@ export class HighlightWidgetTool extends AbstractToolProvider<{ factoryId: strin
             factoryId: { type: 'string' },
             options: { type: 'object' }
         },
-    }
+    };
 
     constructor(
         @inject(CommandRegistry)
