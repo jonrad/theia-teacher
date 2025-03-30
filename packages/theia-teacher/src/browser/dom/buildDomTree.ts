@@ -731,13 +731,6 @@ function createDomTreeNode(node: Node, parentIframe: HTMLIFrameElement | null = 
         return null;
     }
 
-    if (nodeData.attributes['id']) {
-        const id = nodeData.attributes['id'].toString();
-        if (id.startsWith("code-editor-opener:") && id.includes("sample2.js")) {
-            debugger;
-        }
-    }
-
     const id = `${ID.current++}`;
     DOM_HASH_MAP[id] = nodeData;
     return id;

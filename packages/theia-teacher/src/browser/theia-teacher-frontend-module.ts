@@ -58,6 +58,15 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
         });
 
         this.commandRegistry.registerCommand({
+            id: 'debug-layout-highlight-all',
+            label: 'Debug Layout - Highlight All',
+            category: COMMAND_CATEGORY,
+        }, {
+            execute: async () => {
+                await this.executeGetLayout(true);
+            }
+        });
+        this.commandRegistry.registerCommand({
             id: GET_LAYOUT_TOOL_ID,
             label: 'Get Layout',
             category: COMMAND_CATEGORY,
@@ -122,7 +131,7 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
         });
     }
 
-    async executeGetLayout() {
+    async executeGetLayout(highlightElements: boolean = true) {
         /*
         // TODO: This isn't working
         const chatWidget = await this.widgetManager.getWidget('chat-tree-widget');
@@ -140,7 +149,7 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
         }
 
         const { selectorMap } = await this.domService.getClickableElements(
-            false,
+            highlightElements,
             -1,
             0,
             ['margin']
