@@ -42,12 +42,14 @@ export class DomService {
     async getClickableElements(
         highlightElements: boolean = true,
         focusElement: number = -1,
-        viewportExpansion: number = 0
+        viewportExpansion: number = 0,
+        includedClasses: string[] = []
     ): Promise<DOMState> {
         const [elementTree, selectorMap] = await this._buildDomTree(
             highlightElements,
             focusElement,
-            viewportExpansion
+            viewportExpansion,
+            includedClasses
         );
         this.lastSelectorMap = selectorMap;
         return { elementTree, selectorMap };
@@ -56,12 +58,14 @@ export class DomService {
     private async _buildDomTree(
         highlightElements: boolean,
         focusElement: number,
-        viewportExpansion: number
+        viewportExpansion: number,
+        includedClasses: string[]
     ): Promise<[DOMElementNode, SelectorMap]> {
         const args = {
             doHighlightElements: highlightElements,
             focusHighlightIndex: focusElement,
             viewportExpansion: viewportExpansion,
+            includedClasses: includedClasses,
         };
 
         try {

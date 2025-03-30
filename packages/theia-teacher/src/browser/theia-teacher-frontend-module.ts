@@ -139,7 +139,13 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
             console.error('chatTreeContainer not found');
         }
 
-        const { selectorMap } = await this.domService.getClickableElements(false);
+        const { selectorMap } = await this.domService.getClickableElements(
+            false,
+            -1,
+            0,
+            ['margin']
+        );
+
         const entries = Object.values(selectorMap)
             .map(value => (value as DOMElementNode).clickableElementsToString(ALL_ATTRIBUTES))
             .filter(entry => entry !== undefined)

@@ -16,6 +16,7 @@ interface DOMTreeArgs {
     doHighlightElements?: boolean;
     focusHighlightIndex?: number;
     viewportExpansion?: number;
+    includedClasses?: string[];
 }
 
 interface NodeData {
@@ -42,6 +43,8 @@ let highlightIndex = 0;
 let viewportExpansion = 0;
 let doHighlightElements = true;
 let focusHighlightIndex = -1;
+let includedClasses: string[] = [];
+
 const ID = { current: 0 };
 const DOM_HASH_MAP: Record<string, NodeData> = {};
 
@@ -305,6 +308,14 @@ function isInteractiveElement(element: Element): boolean {
     if (element.classList) {
         if (element.classList.contains('theia-highlight') || element.classList.contains('lm-TabBar-tab')) {
             return true;
+        }
+
+        if (includedClasses.length > 0 && isElementVisible(element)) {
+            for (const className of includedClasses) {
+                if (element.classList.contains(className)) {
+                    return true;
+                }
+            }
         }
     }
 
@@ -720,6 +731,13 @@ function createDomTreeNode(node: Node, parentIframe: HTMLIFrameElement | null = 
         return null;
     }
 
+    if (nodeData.attributes['id']) {
+        const id = nodeData.attributes['id'].toString();
+        if (id.startsWith("code-editor-opener:") && id.includes("sample2.js")) {
+            debugger;
+        }
+    }
+
     const id = `${ID.current++}`;
     DOM_HASH_MAP[id] = nodeData;
     return id;
@@ -734,6 +752,7 @@ export function buildDomTree(args: DOMTreeArgs = {}): { rootId: string | null; m
     doHighlightElements = args.doHighlightElements ?? true;
     focusHighlightIndex = args.focusHighlightIndex ?? -1;
     viewportExpansion = args.viewportExpansion ?? 0;
+    includedClasses = args.includedClasses ?? [];
 
     const container = document.getElementById(HIGHLIGHT_CONTAINER_ID);
     if (container) {
