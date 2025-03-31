@@ -12,6 +12,8 @@ import { DOMElementNode, DomService, ALL_ATTRIBUTES } from './dom/domService';
 import { HIGHLIGHT_BY_HIGHLIGHT_INDEX_TOOL_ID, HighlightByHighlightIndexTool } from './tools/highlight-by-index-tool';
 import { OpenerService, open } from '@theia/core/lib/browser/opener-service';
 import { EditorWidget } from '@theia/editor/lib/browser';
+import { ChatViewWidget } from '@theia/ai-chat-ui/lib/browser/chat-view-widget';
+import { WidgetManager } from '@theia/core/lib/browser/widget-manager';
 
 export const COMMAND_CATEGORY = 'Theia Teacher';
 
@@ -28,10 +30,21 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
         private readonly openerService: OpenerService,
         @inject(UntitledResourceResolver)
         private readonly untitledResourceResolver: UntitledResourceResolver,
+        @inject(WidgetManager)
+        private readonly widgetManager: WidgetManager,
     ) {
     }
 
     onStart(): void {
+        this.commandRegistry.registerCommand({
+            id: 'jon-experiment',
+            label: 'Jon Experiment',
+            category: COMMAND_CATEGORY,
+        }, {
+            execute: async () => {
+            }
+        });
+
         this.commandRegistry.registerCommand({
             id: 'debug-layout',
             label: 'Debug Layout',
@@ -120,18 +133,25 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
 
         domNode.classList.add('pulse-element');
 
-        return new Promise(resolve => {
-            addOneTimeListener(domNode, 'click', () => {
-                domNode.classList.remove('pulse-element');
-                resolve({
-                    success: true,
-                    directions: 'User has clicked on the element, please provide further directions based on any changes to the layout.'
-                });
-            });
+        addOneTimeListener(domNode, 'click', async () => {
+            domNode.classList.remove('pulse-element');
+            const chatWidget = await this.widgetManager.getWidget<MyChatViewWidget>(ChatViewWidget.ID);
+            if (chatWidget) {
+                if (!chatWidget.query) {
+                    console.error('chatWidget.query is undefined. This is likely to a conflicting extension');
+                    return;
+                }
+                chatWidget.query(`@teacher-agent User has clicked on the highlighted element, index ${highlightIndex}. Please provide any further directions`);
+            }
         });
+
+        return {
+            success: true,
+            details: 'Element highlighted'
+        };
     }
 
-    async executeGetLayout(highlightElements: boolean = true) {
+    async executeGetLayout(highlightElements: boolean = false) {
         /*
         // TODO: This isn't working
         const chatWidget = await this.widgetManager.getWidget('chat-tree-widget');
@@ -173,7 +193,13 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
     }
 }
 
-export default new ContainerModule(bind => {
+export class MyChatViewWidget extends ChatViewWidget {
+    public query(query: string): Promise<void> {
+        return this.onQuery(query);
+    }
+}
+
+export default new ContainerModule((bind, unbind) => {
     // TODO: verify if this is needed or if we can use bindContribution
     function bindTools(tools: interfaces.ServiceIdentifier<ToolProvider>[]) {
         for (const tool of tools) {
@@ -181,6 +207,9 @@ export default new ContainerModule(bind => {
             bind(ToolProvider).toService(tool);
         }
     }
+
+    unbind(ChatViewWidget);
+    bind(ChatViewWidget).to(MyChatViewWidget);
 
     bindTools([
         LayoutTool,
