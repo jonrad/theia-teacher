@@ -19,7 +19,7 @@ interface DOMTreeArgs {
     includedClasses?: string[];
 }
 
-interface NodeData {
+export interface NodeData {
     id?: string;
     tagName?: string;
     type?: string;
@@ -33,6 +33,7 @@ interface NodeData {
     isInViewport?: boolean;
     highlightIndex?: number;
     shadowRoot?: boolean;
+    element?: HTMLElement;
 }
 
 // ==================== Constants ====================
@@ -730,6 +731,8 @@ function createDomTreeNode(node: Node, parentIframe: HTMLIFrameElement | null = 
     if (nodeData.tagName === 'a' && nodeData.children.length === 0 && !nodeData.attributes['href']) {
         return null;
     }
+
+    nodeData.element = element;
 
     const id = `${ID.current++}`;
     DOM_HASH_MAP[id] = nodeData;

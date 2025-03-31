@@ -14,6 +14,7 @@ import { OpenerService, open } from '@theia/core/lib/browser/opener-service';
 import { EditorWidget } from '@theia/editor/lib/browser';
 import { ChatViewWidget } from '@theia/ai-chat-ui/lib/browser/chat-view-widget';
 import { WidgetManager } from '@theia/core/lib/browser/widget-manager';
+import { ApplicationShell, Widget } from '@theia/core/lib/browser';
 
 export const COMMAND_CATEGORY = 'Theia Teacher';
 
@@ -32,6 +33,8 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
         private readonly untitledResourceResolver: UntitledResourceResolver,
         @inject(WidgetManager)
         private readonly widgetManager: WidgetManager,
+        @inject(ApplicationShell)
+        private readonly shell: ApplicationShell,
     ) {
     }
 
@@ -53,7 +56,7 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
             execute: async () => {
                 const layout = await this.executeGetLayout();
                 (layout as any).uniqueAttributes =
-                    Array.from(new Set(layout.highlightable.flatMap(entry => entry.type === 'element' && entry.attributes ? Object.keys(entry.attributes) : [])));
+                    Array.from(new Set(layout.highlightable.flatMap(entry => entry.attributes ? Object.keys(entry.attributes) : [])));
                 const untitledUri = this.untitledResourceResolver.createUntitledURI('.json');
                 this.untitledResourceResolver.resolve(untitledUri);
                 const widget = (await open(this.openerService, untitledUri)) as EditorWidget;
@@ -175,13 +178,67 @@ export class AiToolsFrontendApplicationContribution implements FrontendApplicati
             ['margin']
         );
 
+        const filteredAttributeKeys = new Set([
+            'role',
+            'class',
+            'id',
+            'title',
+            'aria-label',
+            'data-node-id',
+        ]);
+
+        console.error('shell', this.shell);
         const entries = Object.values(selectorMap)
-            .map(value => (value as DOMElementNode).clickableElementsToString(ALL_ATTRIBUTES))
+            .map(value => (value as DOMElementNode).toDOMOutput(ALL_ATTRIBUTES))
             .filter(entry => entry !== undefined)
-            .map(entry => ({
-                ...entry,
-                children: undefined
-            }));
+            .map(entry => {
+                let widgetText = '';
+                let parentWidget: Widget | undefined = undefined;
+                if (this.shell.layout && entry.element) {
+                    for (const widget of this.shell.layout) {
+                        if (widget.node.contains(entry.element)) {
+                            parentWidget = widget;
+                            break;
+                        }
+                    }
+
+                    while (parentWidget) {
+                        const label = parentWidget.title.label || parentWidget.title.caption || parentWidget.id;
+                        if (label.trim() !== '') {
+                            widgetText = widgetText ? `${widgetText} > ${label}` : label;
+                        }
+
+                        if (parentWidget.children) {
+                            let found = false;
+                            for (const child of parentWidget.children()) {
+                                if (child.node.contains(entry.element)) {
+                                    parentWidget = child;
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if (!found) {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                }
+
+                const result = {
+                    highlightIndex: entry.highlightIndex,
+                    attributes: entry.type === 'element' && entry.attributes ? {
+                        ...Object.fromEntries(
+                            Object.entries(entry.attributes).filter(([key]) => filteredAttributeKeys.has(key))
+                        ),
+                        widget: widgetText === '' ? undefined : widgetText,
+                    } : undefined,
+                    text: entry.text && entry.text.length > 0 ? entry.text : undefined,
+                }
+
+                return result;
+            });
 
         const layout = {
             highlightable: entries

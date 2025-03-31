@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { injectable } from '@theia/core/shared/inversify';
-import { buildDomTree } from './buildDomTree';
+import { buildDomTree, NodeData } from './buildDomTree';
 
 const logger = console; // Replace with your preferred logging system
 
@@ -22,6 +22,7 @@ export interface DOMNodeOutput {
     highlightIndex?: number;
     attributes?: Record<string, string>;
     text?: string;
+    element?: HTMLElement;
     children?: DOMOutput[];
 }
 
@@ -78,7 +79,7 @@ export class DomService {
     }
 
     private async _constructDomTree(
-        evalPage: any
+        evalPage: { rootId: string | null; map: Record<string, NodeData> }
     ): Promise<[DOMElementNode, SelectorMap]> {
         const jsNodeMap = evalPage.map;
         const jsRootId = evalPage.rootId;
@@ -87,7 +88,7 @@ export class DomService {
         const nodeMap: Record<string, DOMBaseNode> = {};
 
         for (const [id, nodeData] of Object.entries(jsNodeMap)) {
-            const [node, childrenIds] = this._parseNode(nodeData as any);
+            const [node, childrenIds] = this._parseNode(nodeData);
             if (!node) {
                 continue;
             }
@@ -126,7 +127,7 @@ export class DomService {
     }
 
     private _parseNode(
-        nodeData: any
+        nodeData: NodeData
     ): [DOMBaseNode | undefined, number[]] {
         if (!nodeData) {
             return [undefined, []];
@@ -134,40 +135,32 @@ export class DomService {
 
         // Process text nodes immediately
         if (nodeData.type === 'TEXT_NODE') {
-            const textNode = new DOMTextNode(nodeData.isVisible, nodeData.text, undefined);
+            const textNode = new DOMTextNode(nodeData.isVisible ?? false, nodeData.text ?? '', undefined);
             return [textNode, []];
         }
 
         // Process coordinates if they exist for element nodes
-        let viewportInfo: ViewportInfo | undefined;
-
-        if ('viewport' in nodeData) {
-            viewportInfo = {
-                width: nodeData.viewport.width,
-                height: nodeData.viewport.height,
-            };
-        }
-
         const elementNode = new DOMElementNode({
-            isVisible: nodeData.isVisible,
-            tagName: nodeData.tagName,
-            xpath: nodeData.xpath,
+            isVisible: nodeData.isVisible ?? false,
+            tagName: nodeData.tagName ?? '',
+            xpath: nodeData.xpath ?? '',
             attributes: nodeData.attributes || {},
             children: [],
-            isInteractive: nodeData.isInteractive,
-            isTopElement: nodeData.isTopElement,
-            isInViewport: nodeData.isInViewport,
+            isInteractive: nodeData.isInteractive ?? false,
+            isTopElement: nodeData.isTopElement ?? false,
+            isInViewport: nodeData.isInViewport ?? false,
             highlightIndex: nodeData.highlightIndex,
-            shadowRoot: nodeData.shadowRoot,
+            shadowRoot: nodeData.shadowRoot ?? false,
             parent: undefined,
-            viewportInfo: viewportInfo ?? undefined,
+            viewportInfo: undefined,
             viewportCoordinates: undefined,
             pageCoordinates: undefined,
+            element: nodeData.element,
         });
 
         const childrenIds = nodeData.children || [];
 
-        return [elementNode, childrenIds];
+        return [elementNode, childrenIds.map(id => parseInt(id))];
     }
 }
 
@@ -249,6 +242,7 @@ export class DOMElementNode extends DOMBaseNode {
     viewportCoordinates: CoordinateSet | undefined;
     pageCoordinates: CoordinateSet | undefined;
     viewportInfo: ViewportInfo | undefined;
+    element: HTMLElement | undefined;
     private hashCache: HashedDomElement | undefined = undefined;
 
     constructor(args: {
@@ -265,7 +259,8 @@ export class DOMElementNode extends DOMBaseNode {
         viewportCoordinates: CoordinateSet | undefined,
         pageCoordinates: CoordinateSet | undefined,
         viewportInfo: ViewportInfo | undefined,
-        parent: DOMElementNode | undefined
+        parent: DOMElementNode | undefined,
+        element: HTMLElement | undefined
     }) {
         super(args.isVisible, args.parent);
         this.tagName = args.tagName;
@@ -280,6 +275,7 @@ export class DOMElementNode extends DOMBaseNode {
         this.viewportCoordinates = args.viewportCoordinates;
         this.pageCoordinates = args.pageCoordinates;
         this.viewportInfo = args.viewportInfo;
+        this.element = args.element;
     }
 
     override toString(): string {
@@ -364,8 +360,20 @@ export class DOMElementNode extends DOMBaseNode {
         return textParts.join('\n').trim();
     }
 
-    clickableElementsToString(includeAttributes: string[] | typeof ALL_ATTRIBUTES | undefined = undefined): DOMOutput {
+    // TODO: this is a mess, refactor
+    toDOMOutput(includeAttributes: string[] | typeof ALL_ATTRIBUTES | undefined = undefined): DOMNodeOutput {
         const processNode = (node: DOMBaseNode, depth: number): DOMOutput | undefined => {
+            if (node instanceof DOMTextNode) {
+                // Add text only if it doesn't have a highlighted parent
+                if (!node.hasParentWithHighlightIndex() && node.isVisible) {
+                    return {
+                        type: 'text',
+                        text: node.text
+                    };
+                }
+
+                return undefined;
+            }
             if (node instanceof DOMElementNode) {
                 // Add element with highlightIndex
                 let nodeOutput: DOMNodeOutput | undefined = undefined;
@@ -395,7 +403,8 @@ export class DOMElementNode extends DOMBaseNode {
                         tagName: node.tagName,
                         highlightIndex: node.highlightIndex,
                         attributes,
-                        text
+                        text,
+                        element: node.element
                     };
 
                     if (text) {
@@ -410,18 +419,10 @@ export class DOMElementNode extends DOMBaseNode {
 
                 nodeOutput.children = node.children.map(child => processNode(child, depth + 1)).filter((child): child is DOMNodeOutput => child !== undefined);
                 return nodeOutput;
-            } else if (node instanceof DOMTextNode) {
-                // Add text only if it doesn't have a highlighted parent
-                if (!node.hasParentWithHighlightIndex() && node.isVisible) {
-                    return {
-                        type: 'text',
-                        text: node.text
-                    };
-                }
             }
         };
 
-        const result = processNode(this, 0);
+        const result = processNode(this, 0) as DOMNodeOutput;
         if (result === undefined) {
             throw new Error('No clickable elements found');
         }
