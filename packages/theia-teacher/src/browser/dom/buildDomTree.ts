@@ -46,7 +46,7 @@ let focusHighlightIndex = -1;
 let includedClasses: string[] = [];
 
 const ID = { current: 0 };
-const DOM_HASH_MAP: Record<string, NodeData> = {};
+let DOM_HASH_MAP: Record<string, NodeData> = {};
 
 // Cache mechanism
 const DOM_CACHE: DOMCache = {
@@ -738,6 +738,7 @@ function createDomTreeNode(node: Node, parentIframe: HTMLIFrameElement | null = 
 
 // ==================== Public API ====================
 export function buildDomTree(args: DOMTreeArgs = {}): { rootId: string | null; map: Record<string, NodeData> } {
+    DOM_HASH_MAP = {};
     highlightIndex = 0;
     ID.current = 0;
     DOM_CACHE.clearCache();
